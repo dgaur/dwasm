@@ -15,7 +15,7 @@ SAMPLES := $(HELLO_WORLD)
 
 all: $(DWASM) $(SAMPLES)
 
-$(DWASM): dwasm.go
+$(DWASM): $(wildcard *.go) Makefile
 	@$(GO) build
 
 # Compile a single .go source file into the corresponding .wasm
