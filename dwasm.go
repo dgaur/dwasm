@@ -40,7 +40,7 @@ func main() {
 	defer wasmfile.Close()
 
 	reader := bufio.NewReader(wasmfile)
-	_, _ = wasm.LoadModule(reader)
+	_, _ = wasm.ReadModule(reader)
 	
 	return
 }

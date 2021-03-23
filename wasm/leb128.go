@@ -1,6 +1,9 @@
 package wasm
 
-import "io"
+import (
+	"bufio"
+	"io"
+)
 
 
 //
@@ -10,13 +13,14 @@ import "io"
 // - https://en.wikipedia.org/wiki/LEB128 and
 // - https://en.wikipedia.org/wiki/Variable-length_quantity
 //
-func readULEB128(reader io.ByteReader)(uint32, error) {
+func readULEB128(reader io.Reader)(uint32, error) {
 	var shift uint32
 	var value uint32
 
+	byteReader := bufio.NewReader(reader)
 	for {
 		// Consume the next byte
-		b, err := reader.ReadByte()
+		b, err := byteReader.ReadByte()
 		if (err != nil) {
 			return uint32(0xFFFFFFFF), err
 		}

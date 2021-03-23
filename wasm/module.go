@@ -1,7 +1,6 @@
 package wasm
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
 	"log"
@@ -23,7 +22,7 @@ type Module struct {
 //
 // Load and return an entire WASM module
 //
-func LoadModule(reader *bufio.Reader) (Module, error) {
+func ReadModule(reader io.Reader) (Module, error) {
 	module := Module{}
 
 	//
@@ -50,7 +49,7 @@ func LoadModule(reader *bufio.Reader) (Module, error) {
 	//
 	sections := make([]Section, SectionCountMax)
 	for {
-		section, err := loadSection(reader)
+		section, err := readSection(reader)
 		if (err == io.EOF) {
 			break
 		}

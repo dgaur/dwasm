@@ -1,7 +1,7 @@
 package wasm
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -43,7 +43,7 @@ func (section Section) String() string {
 //
 // Parse and return a single Section from a wasm byte sequence
 //
-func loadSection(reader *bufio.Reader) (Section, error) {
+func readSection(reader io.Reader) (Section, error) {
 	section := Section{}
 
 	//
