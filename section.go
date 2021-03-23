@@ -8,9 +8,9 @@ import (
 	"log"
 )
 
-// Section ids
+// Section ids to identify the content of each specific Section block
 const (
-	CustomSection		= 0		// Debugging info, or extensions
+	CustomSection		= 0
 	TypeSection			= 1
 	ImportSection		= 2
 	FunctionSection		= 3
@@ -23,8 +23,13 @@ const (
 	CodeSection			= 10
 	DataSection			= 11
 	DataCountSection	= 12
+
+	SectionCountMax		= DataCountSection
 )
 
+//
+// Section structure.  Describes the content of one complete WASM Section
+//
 type Section struct {
 	id		uint8
 	size	uint32
@@ -68,5 +73,5 @@ func loadSection(reader *bufio.Reader) (Section, error) {
 
 	return section, nil
 }
-	
+
 

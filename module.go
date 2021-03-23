@@ -7,17 +7,25 @@ import (
 	"log"
 )
 
-// Preamble/header
-const MagicSignature	= 0x6d736100	// "\0asm"
-const Version1			= 0x00000001
+// Preamble/header constants
+const (
+	MagicSignature	= 0x6d736100	// "\0asm"
+	Version1		= 0x00000001
+)
 
+//
+// Module structure.  Describes the contents of one complete WASM module.
+//
 type Module struct {
-	sections []Section
+	section []Section
 }
 
+//
+// Load and return an entire WASM module
+//
 func loadModule(reader *bufio.Reader) (Module, error) {
 	module := Module{}
-	
+
 	//
 	// Read through the preamble
 	//
@@ -40,6 +48,7 @@ func loadModule(reader *bufio.Reader) (Module, error) {
 	//
 	// Parse the individual sections
 	//
+	sections := make([]Section, SectionCountMax)
 	for {
 		section, err := loadSection(reader)
 		if (err == io.EOF) {
@@ -49,8 +58,12 @@ func loadModule(reader *bufio.Reader) (Module, error) {
 			log.Fatalf("Invalid section")
 		}
 		log.Println(section)
-		module.sections = append(module.sections, section)
+
+		// Each type of section can occur at most once, except custom sections,
+		// so just track by section id/type
+		sections[ section.id ] = section
 	}
-	
+	module.section = sections
+
 	return module, nil
 }
