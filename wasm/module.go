@@ -1,4 +1,4 @@
-package main
+package wasm
 
 import (
 	"bufio"
@@ -23,7 +23,7 @@ type Module struct {
 //
 // Load and return an entire WASM module
 //
-func loadModule(reader *bufio.Reader) (Module, error) {
+func LoadModule(reader *bufio.Reader) (Module, error) {
 	module := Module{}
 
 	//

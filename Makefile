@@ -12,15 +12,19 @@ HELLO_WORLD := samples/hello_world.wasm
 SAMPLES := $(HELLO_WORLD)
 
 
-
+# By default, build everything: VM, sample code, etc
 all: $(DWASM) $(SAMPLES)
 
-$(DWASM): $(wildcard *.go) Makefile
+
+# Main CLI/VM binary
+$(DWASM): $(wildcard *.go) $(wildcard wasm/*.go) Makefile
 	@$(GO) build
+
 
 # Compile a single .go source file into the corresponding .wasm
 %.wasm : %.go
 	@GOOS=js GOARCH=wasm $(GO) build -o $@ $<
+
 
 .PHONY: clean
 clean:
@@ -30,7 +34,7 @@ clean:
 
 .PHONY: test
 test:
-	@$(GO) test -v -cover
+	@$(GO) test -v -cover wasm
 
 
 .PHONY: vet

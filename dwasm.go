@@ -1,3 +1,6 @@
+//
+// WASM main CLI
+//
 package main
 
 import (
@@ -6,6 +9,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"wasm"
 )
 
 func initialize() string {
@@ -35,7 +40,7 @@ func main() {
 	defer wasmfile.Close()
 
 	reader := bufio.NewReader(wasmfile)
-	_, _ = loadModule(reader)
+	_, _ = wasm.LoadModule(reader)
 	
 	return
 }
