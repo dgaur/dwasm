@@ -1,22 +1,9 @@
 package wasm
 
 import (
+	"encoding/binary"
 	"io"
 )
-
-
-//
-// Consume exactly one byte from the reader.  Do *not* buffer or readahead,
-// since the underlying Reader semantics are unknown.  Effectively equivalent
-// to adding io.ByteReader interface, when the underlying Reader may not
-// support it.
-//
-func read1(reader io.Reader)(byte, error) {
-	buffer := make([]byte, 1)
-	_, err := io.ReadFull(reader, buffer)
-	return buffer[0], err
-}
-
 
 //
 // Parse and return a single uint32 value from a LEB128 sequence
@@ -31,7 +18,8 @@ func readULEB128(reader io.Reader)(uint32, error) {
 
 	for {
 		// Consume the next byte
-		b, err := read1(reader)
+		var b uint8
+		err := binary.Read(reader, binary.LittleEndian, &b)
 		if (err != nil) {
 			return uint32(0xFFFFFFFF), err
 		}
