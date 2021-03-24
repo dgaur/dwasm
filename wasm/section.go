@@ -3,56 +3,123 @@ package wasm
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 )
 
-// Section ids to identify the content of each specific Section block
-const (
-	CustomSection		= 0
-	TypeSection			= 1
-	ImportSection		= 2
-	FunctionSection		= 3
-	TableSection		= 4
-	MemorySection		= 5
-	GlobalSection		= 6
-	ExportSection		= 7
-	StartSection		= 8
-	ElementSection		= 9
-	CodeSection			= 10
-	DataSection			= 11
-	DataCountSection	= 12
+var InvalidSection = errors.New("Invalid section")
 
-	SectionCountMax		= DataCountSection
+
+//
+// Section ids to identify the content of each specific Section block
+//
+const (
+	CustomSectionId		= 0
+	TypeSectionId		= 1
+	ImportSectionId		= 2
+	FunctionSectionId	= 3
+	TableSectionId		= 4
+	MemorySectionId		= 5
+	GlobalSectionId		= 6
+	ExportSectionId		= 7
+	StartSectionId		= 8
+	ElementSectionId	= 9
+	CodeSectionId		= 10
+	DataSectionId		= 11
+	DataCountSectionId	= 12
+
+	SectionCountMax		= DataCountSectionId
 )
 
 //
-// Section structure.  Describes the content of one complete WASM Section
+// Section interface.  All section objects present this interface, for
+// parsing, validation, etc
 //
-type Section struct {
-	id		uint8
-	size	uint32
-	content	[]byte
+type Section interface {
+	id() uint32
+	read([]byte) error
+	validate() error
 }
 
-func (section Section) String() string {
-	return fmt.Sprintf("Section type %#x, len %d", section.id, section.size)
-}
 
 //
-// Parse and return a single Section from a wasm byte sequence
+// Custom section.  These are opaque/proprietary, so cannot be parsed
+// or decomposed any further
+//
+type CustomSection struct {
+	size int
+}
+
+func (section CustomSection) id() uint32 {
+	return CustomSectionId
+}
+
+func (section *CustomSection) read(content []byte) error {
+	// Cannot be parsed, just consume the entire block and continue
+	section.size = len(content)
+	return nil
+}
+
+func (section CustomSection) validate() error {
+	// Cannot be validated, so assume always valid
+	return nil
+}
+
+func (section CustomSection) String() string {
+	return fmt.Sprintf("Custom/unknown section (size %d)", section.size)
+}
+
+
+//
+// Memory section
+//
+type MemorySection struct {
+	limit Limit
+}
+
+func (section MemorySection) id() uint32 {
+	return MemorySectionId
+}
+
+func (section *MemorySection) read(content []byte) error {
+	r := bytes.NewReader(content)
+
+	// Memory section is encoded as a vector of memory limits
+	mems, err := readVectorLength(r)
+	if (mems > 1 || err != nil) {
+		// At most 1 memory is allowed.  See section 2.5.5 of WASM spec 1.1
+		return InvalidSection
+	}
+	section.limit, err = readLimit(r)
+	return err
+}
+
+func (section MemorySection) validate() error {
+	if (section.limit.min > section.limit.max) && (section.limit.max != 0) {
+		return InvalidSection
+	}
+	return nil
+}
+
+func (section MemorySection) String() string {
+	return fmt.Sprintf("Memory section: min %#x, max %#x",
+		section.limit.min, section.limit.max)
+}
+
+
+//
+// Parse and return a single Section from a wasm byte sequence.  Each
+// Section is basically encoded as a TLV structure
 //
 func readSection(reader io.Reader) (Section, error) {
-	section := Section{}
+	var section Section
 
-	//
-	// Each section consists of:
-	//	- section id
-	//	- section size
-	//	- section content
-	//
-	err := binary.Read(reader, binary.LittleEndian, &section.id)
+	// Read the section id.  This id determines the type of section (code,
+	// data, memory, etc)
+	var id uint8
+	err := binary.Read(reader, binary.LittleEndian, &id)
 	if (err == io.EOF) {
 		return section, err
 	}
@@ -60,15 +127,31 @@ func readSection(reader io.Reader) (Section, error) {
 		log.Fatalf("Unable to read section id: %s\n", err)
 	}
 
-	section.size, err = readULEB128(reader)
+	// Read the section size. This determines the length of the remaining
+	// section content, if any
+	var size uint32
+	size, err = readULEB128(reader)
 	if (err != nil) {
 		log.Fatalf("Unable to read section size: %s\n", err)
 	}
 
-	section.content = make([]byte, section.size)
-	err = binary.Read(reader, binary.LittleEndian, &section.content)
+	// Read the actual content bytes.  The format will vary depending on the
+	// exact section id
+	content := make([]byte, size)
+	err = binary.Read(reader, binary.LittleEndian, &content)
 	if (err != nil) {
 		log.Fatalf("Unable to read section content: %s\n", err)
+	}
+
+	// Delegate the remaining parsing to the Section itself, based on the
+	// Section id above
+	switch(id) {
+		case MemorySectionId:	section = &MemorySection{}
+		default:				section = &CustomSection{}
+	}
+	err = section.read(content)
+	if (err != nil) {
+		log.Fatalf("Unable to parse section %#x content: %s\n", id, err)
 	}
 
 	return section, nil

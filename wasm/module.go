@@ -60,7 +60,7 @@ func ReadModule(reader io.Reader) (Module, error) {
 
 		// Each type of section can occur at most once, except custom sections,
 		// so just track by section id/type
-		sections[ section.id ] = section
+		sections[ section.id() ] = section
 	}
 	module.section = sections
 
