@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 var InvalidSection = errors.New("Invalid section")
@@ -110,6 +111,78 @@ func (section MemorySection) String() string {
 
 
 //
+// Table section
+//
+type Table struct {
+	limit	Limit
+	reftype	uint8
+}
+
+func readTable(reader *bytes.Reader) (Table, error) {
+	table := Table{}
+
+	reftype, err := reader.ReadByte()
+	if (err != nil) {
+		return table, err
+	}
+	table.reftype = reftype
+
+	table.limit, err = readLimit(reader)
+	return table, err
+}
+
+func (table Table) String() string {
+	return fmt.Sprintf("min %#x, max %#x, type %#x",
+		table.limit.min, table.limit.max, table.reftype)
+}
+
+type TableSection struct {
+	table []Table
+}
+
+func (section TableSection) id() uint32 {
+	return TableSectionId
+}
+
+func (section *TableSection) read(content []byte) error {
+	r := bytes.NewReader(content)
+
+	// Table section is encoded as a vector of tables limits + types
+	count, err := readVectorLength(r)
+	if (err != nil) {
+		return InvalidSection
+	}
+
+	// Parse the individual tables
+	table := make([]Table, count)
+	for i := uint32(0); i < count; i++ {
+		table[i], err = readTable(r)
+		if (err != nil) {
+			return err
+		}
+	}
+	section.table = table
+
+	return nil
+}
+
+func (section TableSection) validate() error {
+	//@
+	return nil
+}
+
+func (section TableSection) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("Table section:\n")
+	for _, table := range section.table {
+		builder.WriteString(fmt.Sprintf("    table: %s\n", table))
+	}
+	return builder.String()
+}
+
+
+//
 // Parse and return a single Section from a wasm byte sequence.  Each
 // Section is basically encoded as a TLV structure
 //
@@ -147,6 +220,7 @@ func readSection(reader io.Reader) (Section, error) {
 	// Section id above
 	switch(id) {
 		case MemorySectionId:	section = &MemorySection{}
+		case TableSectionId:	section = &TableSection{}
 		default:				section = &CustomSection{}
 	}
 	err = section.read(content)
