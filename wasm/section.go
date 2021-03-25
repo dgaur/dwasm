@@ -113,6 +113,11 @@ func (section MemorySection) String() string {
 //
 // Table section
 //
+const (
+	FuncRefType		= 0x70
+	ExternRefType	= 0x6F
+)
+
 type Table struct {
 	limit	Limit
 	reftype	uint8
