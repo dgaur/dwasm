@@ -50,7 +50,7 @@ type Section interface {
 // or decomposed any further
 //
 type CustomSection struct {
-	size int
+	content []byte
 }
 
 func (section CustomSection) id() uint32 {
@@ -59,7 +59,7 @@ func (section CustomSection) id() uint32 {
 
 func (section *CustomSection) read(content []byte) error {
 	// Cannot be parsed, just consume the entire block and continue
-	section.size = len(content)
+	section.content = content
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (section CustomSection) validate() error {
 }
 
 func (section CustomSection) String() string {
-	return fmt.Sprintf("Custom/unknown section (size %d)", section.size)
+	return fmt.Sprintf("Custom/unknown section (size %d)", len(section.content))
 }
 
 

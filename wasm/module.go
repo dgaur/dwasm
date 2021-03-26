@@ -2,9 +2,12 @@ package wasm
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"log"
 )
+
+var InvalidModule = errors.New("Invalid module")
 
 // Preamble/header constants
 const (
@@ -31,17 +34,21 @@ func ReadModule(reader io.Reader) (Module, error) {
 	var magic, version uint32
 	err := binary.Read(reader, binary.LittleEndian, &magic)
 	if (err != nil) {
-		log.Fatalf("Unable to read module signature: %s\n", err)
+		log.Printf("Unable to read module signature: %s\n", err)
+		return module, InvalidModule
 	}
 	if (magic != MagicSignature) {
-		log.Fatalf("Unexpected magic signature: %#x\n", magic)
+		log.Printf("Unexpected magic signature: %#x\n", magic)
+		return module, InvalidModule
 	}
 	err = binary.Read(reader, binary.LittleEndian, &version)
 	if (err != nil) {
-		log.Fatalf("Unable to read module version: %s\n", err)
+		log.Printf("Unable to read module version: %s\n", err)
+		return module, InvalidModule
 	}
 	if (version != Version1) {
-		log.Fatalf("Unexpected module version: %#x\n", version)
+		log.Printf("Unexpected module version: %#x\n", version)
+		return module, InvalidModule
 	}
 
 	//
@@ -54,7 +61,8 @@ func ReadModule(reader io.Reader) (Module, error) {
 			break
 		}
 		if (err != nil) {
-			log.Fatalf("Invalid section")
+			log.Printf("Invalid section")
+			return module, err
 		}
 		log.Println(section)
 
