@@ -39,8 +39,7 @@ func TestMemorySection(t *testing.T) {
 
     for _, test := range testCases {
         t.Run(test.name, func(t *testing.T) {
-            mem := MemorySection{}
-            err := mem.read(test.encoded)
+            mem, err := readMemorySection(test.encoded)
             if (err != test.status) {
                 t.Error("Unexpected decoding status: ", err)
             }
@@ -96,8 +95,7 @@ func TestTableSection(t *testing.T) {
 
     for _, test := range testCases {
         t.Run(test.name, func(t *testing.T) {
-            section := TableSection{}
-            err := section.read(test.encoded)
+            section, err := readTableSection(test.encoded)
             if (err != test.status) {
                 t.Error("Unexpected decoding status: ", err)
             }

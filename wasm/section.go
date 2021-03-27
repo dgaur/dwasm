@@ -40,7 +40,6 @@ const (
 //
 type Section interface {
 	id() uint32
-	read([]byte) error
 	validate() error
 }
 
@@ -51,16 +50,18 @@ type Section interface {
 //
 type CustomSection struct {
 	content []byte
+	customId uint8
+}
+
+// Factory function for decoding and generating a CustomSection from a stream
+// of bytes.  No side effects.
+func readCustomSection(id uint8, content []byte) (CustomSection, error) {
+	// Cannot be parsed, just consume the entire block and continue
+	return CustomSection{ content, id }, nil
 }
 
 func (section CustomSection) id() uint32 {
 	return CustomSectionId
-}
-
-func (section *CustomSection) read(content []byte) error {
-	// Cannot be parsed, just consume the entire block and continue
-	section.content = content
-	return nil
 }
 
 func (section CustomSection) validate() error {
@@ -69,7 +70,8 @@ func (section CustomSection) validate() error {
 }
 
 func (section CustomSection) String() string {
-	return fmt.Sprintf("Custom/unknown section (size %d)", len(section.content))
+	return fmt.Sprintf("Custom/unknown section (id %#x, size %d): % x ...",
+		section.customId, len(section.content), section.content[:4])
 }
 
 
@@ -80,21 +82,31 @@ type MemorySection struct {
 	limit Limit
 }
 
-func (section MemorySection) id() uint32 {
-	return MemorySectionId
-}
-
-func (section *MemorySection) read(content []byte) error {
-	r := bytes.NewReader(content)
+// Factory function for decoding and generating a MemorySection from a stream
+// of bytes.  No side effects.
+func readMemorySection(content []byte) (MemorySection, error) {
+	section := MemorySection{}
+	reader  := bytes.NewReader(content)
 
 	// Memory section is encoded as a vector of memory limits
-	mems, err := readVectorLength(r)
+	mems, err := readVectorLength(reader)
 	if (mems > 1 || err != nil) {
 		// At most 1 memory is allowed.  See section 2.5.5 of WASM spec 1.1
-		return InvalidSection
+		return section, InvalidSection
 	}
-	section.limit, err = readLimit(r)
-	return err
+
+	limit, err := readLimit(reader)
+	if (err != nil) {
+		return section, err
+	}
+	section.limit = limit
+
+	return section, nil
+}
+
+
+func (section MemorySection) id() uint32 {
+	return MemorySectionId
 }
 
 func (section MemorySection) validate() error {
@@ -149,27 +161,31 @@ func (section TableSection) id() uint32 {
 	return TableSectionId
 }
 
-func (section *TableSection) read(content []byte) error {
-	r := bytes.NewReader(content)
+// Factory function for decoding and generating a TableSection from a stream
+// of bytes.  No side effects.
+func readTableSection(content []byte) (TableSection, error) {
+	section := TableSection{}
+	reader  := bytes.NewReader(content)
 
 	// Table section is encoded as a vector of tables limits + types
-	count, err := readVectorLength(r)
+	count, err := readVectorLength(reader)
 	if (err != nil) {
-		return InvalidSection
+		return section, err
 	}
 
 	// Parse the individual tables
 	table := make([]Table, count)
 	for i := uint32(0); i < count; i++ {
-		table[i], err = readTable(r)
+		table[i], err = readTable(reader)
 		if (err != nil) {
-			return err
+			return section, err
 		}
 	}
 	section.table = table
 
-	return nil
+	return section, nil
 }
+
 
 func (section TableSection) validate() error {
 	//@
@@ -224,13 +240,9 @@ func readSection(reader io.Reader) (Section, error) {
 	// Delegate the remaining parsing to the Section itself, based on the
 	// Section id above
 	switch(id) {
-		case MemorySectionId:	section = &MemorySection{}
-		case TableSectionId:	section = &TableSection{}
-		default:				section = &CustomSection{}
-	}
-	err = section.read(content)
-	if (err != nil) {
-		log.Fatalf("Unable to parse section %#x content: %s\n", id, err)
+		case MemorySectionId:	section, err = readMemorySection(content)
+		case TableSectionId:	section, err = readTableSection(content)
+		default:				section, err = readCustomSection(id, content)
 	}
 
 	return section, nil
