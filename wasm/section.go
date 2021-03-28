@@ -31,7 +31,8 @@ const (
 	DataSectionId		= 11
 	DataCountSectionId	= 12
 
-	SectionCountMax		= DataCountSectionId
+	UnknownSectionId	= 16
+	SectionCountMax		= UnknownSectionId + 1
 )
 
 //
@@ -45,19 +46,35 @@ type Section interface {
 
 
 //
-// Custom section.  These are opaque/proprietary, so cannot be parsed
-// or decomposed any further
+// Custom section.  These are mostly opaque/proprietary, so cannot be parsed
+// or decomposed beyond the section name
 //
 type CustomSection struct {
 	content []byte
-	customId uint8
+	name string
 }
 
 // Factory function for decoding and generating a CustomSection from a stream
 // of bytes.  No side effects.
-func readCustomSection(id uint8, content []byte) (CustomSection, error) {
-	// Cannot be parsed, just consume the entire block and continue
-	return CustomSection{ content, id }, nil
+func readCustomSection(content []byte) (CustomSection, error) {
+	section := CustomSection{}
+
+	// Extract the section name, for debugging
+	reader := bytes.NewReader(content)
+	nameLength, err := readVectorLength(reader)
+	if (err != nil) {
+		return section, err
+	}
+	name := make([]byte, nameLength)
+	_, err = reader.Read(name)
+	if (err != nil) {
+		return section, err
+	}
+
+	// Rest of the section is opaque data and cannot be parsed.  Just consume
+	// the entire block and continue
+
+	return CustomSection{ content, string(name) }, nil
 }
 
 func (section CustomSection) id() uint32 {
@@ -70,8 +87,8 @@ func (section CustomSection) validate() error {
 }
 
 func (section CustomSection) String() string {
-	return fmt.Sprintf("Custom/unknown section (id %#x, size %d): % x ...",
-		section.customId, len(section.content), section.content[:4])
+	return fmt.Sprintf("Custom section '%s', size %d",
+		section.name, len(section.content))
 }
 
 
@@ -204,6 +221,48 @@ func (section TableSection) String() string {
 
 
 //
+// Unknown section.  This is not part of the WASM spec, but useful for dealing
+// with unexpected/unrecognized/unsupported sections
+//
+type UnknownSection struct {
+	content []byte
+	unknownId uint8
+}
+
+// Factory function for decoding and generating an UnknownSection from a stream
+// of bytes.  No side effects.
+func readUnknownSection(id uint8, content []byte) (UnknownSection, error) {
+	return UnknownSection{ content, id }, nil
+}
+
+func (section UnknownSection) id() uint32 {
+	return UnknownSectionId
+}
+
+func (section UnknownSection) validate() error {
+	// Cannot be validated, so assume always valid
+	return nil
+}
+
+func (section UnknownSection) String() string {
+	// Include the first few bytes of the payload
+	contentLength := len(section.content)
+	previewLength := 4
+	suffix := " ..."
+	if (previewLength > contentLength) {
+		previewLength = contentLength
+		suffix = ""
+	}
+
+	return fmt.Sprintf("Unknown section %#x, size %d: % x%s",
+		section.unknownId,
+		contentLength,
+		section.content[:previewLength],
+		suffix)
+}
+
+
+//
 // Parse and return a single Section from a wasm byte sequence.  Each
 // Section is basically encoded as a TLV structure
 //
@@ -240,9 +299,10 @@ func readSection(reader io.Reader) (Section, error) {
 	// Delegate the remaining parsing to the Section itself, based on the
 	// Section id above
 	switch(id) {
+		case CustomSectionId:	section, err = readCustomSection(content)
 		case MemorySectionId:	section, err = readMemorySection(content)
 		case TableSectionId:	section, err = readTableSection(content)
-		default:				section, err = readCustomSection(id, content)
+		default:				section, err = readUnknownSection(id, content)
 	}
 
 	return section, nil
