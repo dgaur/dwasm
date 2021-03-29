@@ -61,12 +61,7 @@ func readCustomSection(content []byte) (CustomSection, error) {
 
 	// Extract the section name, for debugging
 	reader := bytes.NewReader(content)
-	nameLength, err := readVectorLength(reader)
-	if (err != nil) {
-		return section, err
-	}
-	name := make([]byte, nameLength)
-	_, err = reader.Read(name)
+	name, err := readName(reader)
 	if (err != nil) {
 		return section, err
 	}
@@ -89,6 +84,115 @@ func (section CustomSection) validate() error {
 func (section CustomSection) String() string {
 	return fmt.Sprintf("Custom section '%s', size %d",
 		section.name, len(section.content))
+}
+
+
+//
+// Exports section
+//
+const (
+	ExportTypeFunction	= 0x00
+	ExportTypeTable		= 0x01
+	ExportTypeMemory	= 0x02
+	ExportTypeGlobal	= 0x03
+)
+
+var ExportTypeMap = map[int]string {
+	ExportTypeFunction:	"function",
+	ExportTypeTable:	"table",
+	ExportTypeMemory:	"memory",
+	ExportTypeGlobal:	"global",
+}
+
+// A descriptor for a single exported symbol/reference
+type Export struct {
+	name	string
+	etype	uint8
+	index	uint32
+}
+
+// Factory function for decoding + returning a single Export descriptor.  No
+// side effects.
+func readExport(reader *bytes.Reader) (Export, error) {
+	export := Export{}
+
+	// Symbol/reference name
+	name, err := readName(reader)
+	if (err != nil) {
+		return export, err
+	}
+	export.name = name
+
+	// Reference target (function, table, etc)
+	etype, err := reader.ReadByte()
+	if (err != nil) {
+		return export, err
+	}
+	export.etype = etype
+
+	// Exported index
+	index, err := readULEB128(reader)
+	if (err != nil) {
+		return export, err
+	}
+	export.index = index
+
+	return export, err
+}
+
+func (export Export) String() string {
+	return fmt.Sprintf("%s, type %s, index %#x",
+		export.name, ExportTypeMap[ int(export.etype) ], export.index)
+}
+
+// Top-level section for declaring Exported symbols/references
+type ExportSection struct {
+	export []Export
+}
+
+func (section ExportSection) id() uint32 {
+	return ExportSectionId
+}
+
+// Factory function for decoding and generating an ExportSection from a stream
+// of bytes.  No side effects.
+func readExportSection(content []byte) (ExportSection, error) {
+	section := ExportSection{}
+	reader  := bytes.NewReader(content)
+
+	// Export section is encoded as a vector of Export descriptors
+	count, err := readVectorLength(reader)
+	if (err != nil) {
+		return section, err
+	}
+
+	// Parse the individual export descriptors
+	export := make([]Export, count)
+	for i := uint32(0); i < count; i++ {
+		export[i], err = readExport(reader)
+		if (err != nil) {
+			return section, err
+		}
+	}
+	section.export = export
+
+	return section, nil
+}
+
+
+func (section ExportSection) validate() error {
+	//@
+	return nil
+}
+
+func (section ExportSection) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("Export section:\n")
+	for _, export := range section.export {
+		builder.WriteString(fmt.Sprintf("    export: %s\n", export))
+	}
+	return builder.String()
 }
 
 
@@ -300,6 +404,7 @@ func readSection(reader io.Reader) (Section, error) {
 	// Section id above
 	switch(id) {
 		case CustomSectionId:	section, err = readCustomSection(content)
+		case ExportSectionId:	section, err = readExportSection(content)
 		case MemorySectionId:	section, err = readMemorySection(content)
 		case TableSectionId:	section, err = readTableSection(content)
 		default:				section, err = readUnknownSection(id, content)

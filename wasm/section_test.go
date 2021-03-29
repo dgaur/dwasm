@@ -4,6 +4,63 @@ import(
     "testing"
     )
 
+
+//
+// Test decoding of ExportSection blocks
+//
+func TestExportSection(t *testing.T) {
+    testCases := []struct{
+        name        string
+        encoded     []byte
+        decoded     ExportSection
+        status      error
+    }{
+		// 1 export
+        { "export1",
+          []byte{ 1,
+				  7, 'e', 'x', 'p', 'o', 'r', 't', '1', 0, 0 },
+          ExportSection{
+			[]Export{
+				{ "export1", 0, 0 },
+			},
+		  },
+          nil },
+
+		// 2 exports
+        { "export2",
+          []byte{ 2,
+				  7, 'e', 'x', 'p', 'o', 'r', 't', '1', 0, 0,
+                  7, 'e', 'x', 'p', 'o', 'r', 't', '2', 2, 0xF },
+          ExportSection{
+			[]Export{
+				{ "export1", 0, 0 },
+				{ "export2", 2, 0xF },
+			},
+		  },
+          nil },
+    }
+
+    for _, test := range testCases {
+        t.Run(test.name, func(t *testing.T) {
+            section, err := readExportSection(test.encoded)
+            if (err != test.status) {
+                t.Error("Unexpected decoding status: ", err)
+            }
+            if (err == nil) {
+                if (len(section.export) != len(test.decoded.export)) {
+                    t.Error("Unexpected decoded length: ", section)
+                }
+
+                // Assume each successful decode has at least 1 export
+                if (section.export[0] != test.decoded.export[0]) {
+                    t.Error("Unexpected decoded export[0]: ", section)
+                }
+			}
+        })
+    }
+}
+
+
 //
 // Test decoding of MemorySection blocks
 //
