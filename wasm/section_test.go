@@ -74,34 +74,47 @@ func TestMemorySection(t *testing.T) {
         // Normal decode, min only
         { "decode1",
           []byte{ 0x01, 0x00, 0x01 },
-          MemorySection{ Limit{ 0x01, 0 } },
+          MemorySection{
+			[]Memory{
+				Memory { Limit{ 0x01, 0 } },
+			},
+		  },
           nil },
         { "decodeF",
           []byte{ 0x01, 0x00, 0x0F },
-          MemorySection{ Limit{ 0x0F, 0 } },
+          MemorySection{
+			[]Memory{
+				Memory { Limit{ 0x0F, 0 } },
+			},
+		  },
           nil },
 
         // Normal decode, min + max
         { "decodeAB",
           []byte{ 0x01, 0x01, 0x0A, 0x0B },
-          MemorySection{ Limit{ 0x0A, 0x0B } },
+          MemorySection{
+			[]Memory{
+				Memory { Limit{ 0x0A, 0x0B } },
+			},
+		  },
           nil },
-
-        // Invalid decode, only 1 Memory allowed
-        { "decodeABInvalid",
-          []byte{ 0x02, 0x00, 0x01, 0x00, 0x02 },
-          MemorySection{ Limit{ 0x01, 0 } },
-          InvalidSection },
     }
 
     for _, test := range testCases {
         t.Run(test.name, func(t *testing.T) {
-            mem, err := readMemorySection(test.encoded)
+            section, err := readMemorySection(test.encoded)
             if (err != test.status) {
                 t.Error("Unexpected decoding status: ", err)
             }
-            if (err == nil && mem != test.decoded) {
-                t.Error("Unexpected decoded memory: ", mem)
+            if (err == nil) {
+                if (len(section.memory) != len(test.decoded.memory)) {
+                    t.Error("Unexpected decoded length: ", section)
+                }
+
+                // Assume each successful decode has at least 1 memory
+                if (section.memory[0] != test.decoded.memory[0]) {
+                    t.Error("Unexpected decoded memory[0]: ", section)
+                }
             }
         })
     }

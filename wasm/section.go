@@ -199,8 +199,28 @@ func (section ExportSection) String() string {
 //
 // Memory section
 //
-type MemorySection struct {
+
+// Single memory descriptor
+type Memory struct {
 	limit Limit
+}
+
+// Factory function for decoding + returning a single Memory descriptor.  No
+// side effects.
+func readMemory(reader *bytes.Reader) (Memory, error) {
+	memory := Memory{}
+	limit, err := readLimit(reader)
+	memory.limit = limit
+	return memory, err
+}
+
+func (memory Memory) String() string {
+	return fmt.Sprintf("min %#x, max %#x",
+		memory.limit.min, memory.limit.max)
+}
+
+type MemorySection struct {
+	memory []Memory
 }
 
 // Factory function for decoding and generating a MemorySection from a stream
@@ -210,17 +230,20 @@ func readMemorySection(content []byte) (MemorySection, error) {
 	reader  := bytes.NewReader(content)
 
 	// Memory section is encoded as a vector of memory limits
-	mems, err := readVectorLength(reader)
-	if (mems > 1 || err != nil) {
-		// At most 1 memory is allowed.  See section 2.5.5 of WASM spec 1.1
-		return section, InvalidSection
-	}
-
-	limit, err := readLimit(reader)
+	count, err := readVectorLength(reader)
 	if (err != nil) {
 		return section, err
 	}
-	section.limit = limit
+
+	// Parse the individual memories
+	memory := make([]Memory, count)
+	for i := uint32(0); i < count; i++ {
+		memory[i], err = readMemory(reader)
+		if (err != nil) {
+			return section, err
+		}
+	}
+	section.memory = memory
 
 	return section, nil
 }
@@ -231,15 +254,21 @@ func (section MemorySection) id() uint32 {
 }
 
 func (section MemorySection) validate() error {
-	if (section.limit.min > section.limit.max) && (section.limit.max != 0) {
+	if (len(section.memory) > 1) {
+		// At most 1 memory is allowed.  See section 2.5.5 of WASM spec 1.1
 		return InvalidSection
 	}
 	return nil
 }
 
 func (section MemorySection) String() string {
-	return fmt.Sprintf("Memory section: min %#x, max %#x",
-		section.limit.min, section.limit.max)
+	var builder strings.Builder
+
+	builder.WriteString("Memory section:\n")
+	for _, memory := range section.memory {
+		builder.WriteString(fmt.Sprintf("    memory: %s\n", memory))
+	}
+	return builder.String()
 }
 
 
