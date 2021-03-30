@@ -275,16 +275,6 @@ func (section MemorySection) String() string {
 //
 // Table section
 //
-const (
-	FuncRefType		= 0x70
-	ExternRefType	= 0x6F
-)
-
-var TableRefTypeMap = map[int]string {
-	FuncRefType:	"function",
-	ExternRefType:	"extern",
-}
-
 type Table struct {
 	limit	Limit
 	reftype	uint8
@@ -305,7 +295,7 @@ func readTable(reader *bytes.Reader) (Table, error) {
 
 func (table Table) String() string {
 	return fmt.Sprintf("table: min %#x, max %#x, type %s",
-		table.limit.min, table.limit.max, TableRefTypeMap[ int(table.reftype) ])
+		table.limit.min, table.limit.max, TypeMap[ int(table.reftype) ])
 }
 
 type TableSection struct {
@@ -353,6 +343,172 @@ func (section TableSection) String() string {
 	builder.WriteString("Table section:\n")
 	for _, table := range section.table {
 		builder.WriteString(fmt.Sprintf("    %s\n", table))
+	}
+	return builder.String()
+}
+
+
+//
+// Types section (number types, value types, function types, etc).  See
+// section 5.3 of WASM 1.1 spec
+//
+// The hierarchy is:
+// * One TypeSection contains:
+//   * Zero or more FunctionTypes, each of which contain:
+//     * Zero or more ResultTypes (as function parameters)
+//     * Zero or more ResultTypes (as function results)
+//
+
+type ValueType	uint8
+type ResultType	[]ValueType
+
+const (
+	// Number types
+	NumTypei32		= 0x7F
+	NumTypei64		= 0x7E
+	NumTypef32		= 0x7D
+	NumTypef64		= 0x7C
+
+	// Reference types
+	RefTypeFunction	= 0x70
+	RefTypeExtern	= 0x6F
+)
+
+var TypeMap = map[int]string {
+	NumTypei32:			"i32",
+	NumTypei64:			"i64",
+	NumTypef32:			"f32",
+	NumTypef64:			"f64",
+
+	RefTypeFunction:	"function",
+	RefTypeExtern:		"extern",
+}
+
+func (ftype ResultType) String() string {
+	var builder strings.Builder
+
+	if (len(ftype) > 0) {
+		for _, vtype := range ftype {
+			builder.WriteString(TypeMap[int(vtype)])
+			builder.WriteString(" ")
+		}
+	} else {
+		// No param/result
+		builder.WriteString("[] ")
+	}
+	return builder.String()
+}
+
+// A descriptor for a single function-type
+type FunctionType struct {
+	parameter	ResultType
+	result		ResultType
+}
+
+// Factory function for decoding + returning a ResultType.  No side effects.
+func readResultType(reader *bytes.Reader) (ResultType, error) {
+	// Each ResultType is itself a vector of ValueTypes
+	count, err := readVectorLength(reader)
+	if (err != nil) {
+		return ResultType{}, err
+	}
+
+	// Parse the individual types
+	result := make([]ValueType, count)
+	for i := uint32(0); i < count; i++ {
+		vtype, err := reader.ReadByte()
+		if (err != nil) {
+			return result, err
+		}
+		result[i] = ValueType(vtype)
+	}
+
+	return result, nil
+}
+
+// Factory function for decoding + returning a single FunctionType descriptor.
+// No side effects.
+func readFunctionType(reader *bytes.Reader) (FunctionType, error) {
+	ftype := FunctionType{}
+
+	// Intro delimiter, defined to be 0x60.  See section 5.3.5 of WASM 1.1 spec
+	const functionTypeDelimiter = 0x60
+	b, err := reader.ReadByte()
+	if (err != nil) {
+		return ftype, err
+	}
+	if (b != functionTypeDelimiter) {
+		return ftype, InvalidSection
+	}
+
+	// Function param types
+	parameter, err := readResultType(reader)
+	if (err != nil) {
+		return ftype, err
+	}
+	ftype.parameter = parameter
+	
+	// Function result types
+	result, err := readResultType(reader)
+	if (err != nil) {
+		return ftype, err
+	}
+	ftype.result = result
+	
+	return ftype, nil
+}
+
+func (ftype FunctionType) String() string {
+	return fmt.Sprintf("function: param %s=> result %s",
+		ftype.parameter, ftype.result)
+}
+
+// Top-level section for declaring Types
+type TypeSection struct {
+	ftype []FunctionType
+}
+
+func (section TypeSection) id() uint32 {
+	return TypeSectionId
+}
+
+// Factory function for decoding and generating an TypeSection from a stream
+// of bytes.  No side effects.
+func readTypeSection(content []byte) (TypeSection, error) {
+	section := TypeSection{}
+	reader  := bytes.NewReader(content)
+
+	// Type section is encoded as a vector of FunctionType descriptors
+	count, err := readVectorLength(reader)
+	if (err != nil) {
+		return section, err
+	}
+
+	// Parse the individual function-type descriptors
+	ftype := make([]FunctionType, count)
+	for i := uint32(0); i < count; i++ {
+		ftype[i], err = readFunctionType(reader)
+		if (err != nil) {
+			return section, err
+		}
+	}
+	section.ftype = ftype
+
+	return section, nil
+}
+
+
+func (section TypeSection) validate() error {
+	//@
+	return nil
+}
+
+func (section TypeSection) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("Type section:\n")
+	for _, ftype := range section.ftype {
+		builder.WriteString(fmt.Sprintf("    %s\n", ftype))
 	}
 	return builder.String()
 }
@@ -441,6 +597,8 @@ func readSection(reader io.Reader) (Section, error) {
 		case ExportSectionId:	section, err = readExportSection(content)
 		case MemorySectionId:	section, err = readMemorySection(content)
 		case TableSectionId:	section, err = readTableSection(content)
+		case TypeSectionId:		section, err = readTypeSection(content)
+
 		default:				section, err = readUnknownSection(id, content)
 	}
 

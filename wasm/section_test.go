@@ -182,3 +182,72 @@ func TestTableSection(t *testing.T) {
         })
     }
 }
+
+
+//
+// Test decoding of TypeSection blocks
+//
+func TestTypeSection(t *testing.T) {
+    testCases := []struct{
+        name        string
+        encoded     []byte
+        decoded     TypeSection
+        status      error
+    }{
+        // Normal decode, no params or results
+        { "decode-no-param-no-result",
+          []byte{ 0x01, 0x60, 0x00, 0x00 },
+          TypeSection{
+            []FunctionType{
+                { ResultType{}, ResultType{} },
+            },
+          },
+          nil },
+
+        // Normal decode, multiple params, multiple results
+        { "decode-multiple-param-multiple-result",
+          []byte{ 0x02,
+		          0x60, 0x00, 0x00,
+				  0x60, 0x02, 0x7F, 0x7E, 0x02, 0x7D, 0x7C },
+          TypeSection{
+            []FunctionType{
+                { ResultType{},             ResultType{} },
+                { ResultType{ 0x7F, 0x7E }, ResultType{ 0x7D, 0x7C } },
+            },
+          },
+          nil },
+		  
+        // Bad delimiter (0xAA instead of 0x60)
+        { "bad-ftype-delimiter-0xAA",
+          []byte{ 0x01, 0xAA, 0x00, 0x00 },
+          TypeSection{
+            []FunctionType{
+                { ResultType{}, ResultType{} },
+            },
+          },
+          InvalidSection },
+	}
+
+    for _, test := range testCases {
+        t.Run(test.name, func(t *testing.T) {
+            section, err := readTypeSection(test.encoded)
+            if (err != test.status) {
+                t.Error("Unexpected decoding status: ", err)
+            }
+            if (err == nil) {
+                if (len(section.ftype) != len(test.decoded.ftype)) {
+                    t.Error("Unexpected decoded ftype length: ", section)
+                }
+
+                // Assume each successful decode has at least 1 function-type
+                if (len(section.ftype[0].parameter) != len(test.decoded.ftype[0].parameter)) {
+                    t.Error("Unexpected decoded param length: ", section)
+                }
+                if (len(section.ftype[0].result) != len(test.decoded.ftype[0].result)) {
+                    t.Error("Unexpected decoded result length: ", section)
+                }
+
+            }
+        })
+    }
+}
