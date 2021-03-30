@@ -141,7 +141,7 @@ func readExport(reader *bytes.Reader) (Export, error) {
 }
 
 func (export Export) String() string {
-	return fmt.Sprintf("%s, type %s, index %#x",
+	return fmt.Sprintf("export: %s, type %s, index %#x",
 		export.name, ExportTypeMap[ int(export.etype) ], export.index)
 }
 
@@ -190,7 +190,7 @@ func (section ExportSection) String() string {
 
 	builder.WriteString("Export section:\n")
 	for _, export := range section.export {
-		builder.WriteString(fmt.Sprintf("    export: %s\n", export))
+		builder.WriteString(fmt.Sprintf("    %s\n", export))
 	}
 	return builder.String()
 }
@@ -215,7 +215,7 @@ func readMemory(reader *bytes.Reader) (Memory, error) {
 }
 
 func (memory Memory) String() string {
-	return fmt.Sprintf("min %#x, max %#x",
+	return fmt.Sprintf("memory: min %#x, max %#x",
 		memory.limit.min, memory.limit.max)
 }
 
@@ -266,7 +266,7 @@ func (section MemorySection) String() string {
 
 	builder.WriteString("Memory section:\n")
 	for _, memory := range section.memory {
-		builder.WriteString(fmt.Sprintf("    memory: %s\n", memory))
+		builder.WriteString(fmt.Sprintf("    %s\n", memory))
 	}
 	return builder.String()
 }
@@ -279,6 +279,11 @@ const (
 	FuncRefType		= 0x70
 	ExternRefType	= 0x6F
 )
+
+var TableRefTypeMap = map[int]string {
+	FuncRefType:	"function",
+	ExternRefType:	"extern",
+}
 
 type Table struct {
 	limit	Limit
@@ -299,8 +304,8 @@ func readTable(reader *bytes.Reader) (Table, error) {
 }
 
 func (table Table) String() string {
-	return fmt.Sprintf("min %#x, max %#x, type %#x",
-		table.limit.min, table.limit.max, table.reftype)
+	return fmt.Sprintf("table: min %#x, max %#x, type %s",
+		table.limit.min, table.limit.max, TableRefTypeMap[ int(table.reftype) ])
 }
 
 type TableSection struct {
@@ -347,7 +352,7 @@ func (section TableSection) String() string {
 
 	builder.WriteString("Table section:\n")
 	for _, table := range section.table {
-		builder.WriteString(fmt.Sprintf("    table: %s\n", table))
+		builder.WriteString(fmt.Sprintf("    %s\n", table))
 	}
 	return builder.String()
 }
