@@ -62,6 +62,49 @@ func TestExportSection(t *testing.T) {
 
 
 //
+// Test decoding of FunctionSection blocks
+//
+func TestFunctionSection(t *testing.T) {
+    testCases := []struct{
+        name        string
+        encoded     []byte
+        decoded     FunctionSection
+        status      error
+    }{
+		// 1 function
+        { "function1",
+          []byte{ 1, 0 },
+          FunctionSection{ []uint32{ 0 } },
+          nil },
+
+		// 2 functions
+        { "function2",
+          []byte{ 2, 0xA, 0xB },
+          FunctionSection{ []uint32{ 0xA, 0xB } },
+          nil },
+    }
+
+    for _, test := range testCases {
+        t.Run(test.name, func(t *testing.T) {
+            section, err := readFunctionSection(test.encoded)
+            if (err != test.status) {
+                t.Error("Unexpected decoding status: ", err)
+            }
+            if (err == nil) {
+                if (len(section.function) != len(test.decoded.function)) {
+                    t.Error("Unexpected decoded length: ", section)
+                }
+                // Assume each successful decode has at least 1 function
+                if (section.function[0] != test.decoded.function[0]) {
+                    t.Error("Unexpected decoded function[0]: ", section)
+                }
+			}
+        })
+    }
+}
+
+
+//
 // Test decoding of MemorySection blocks
 //
 func TestMemorySection(t *testing.T) {
@@ -216,7 +259,7 @@ func TestTypeSection(t *testing.T) {
             },
           },
           nil },
-		  
+
         // Bad delimiter (0xAA instead of 0x60)
         { "bad-ftype-delimiter-0xAA",
           []byte{ 0x01, 0xAA, 0x00, 0x00 },

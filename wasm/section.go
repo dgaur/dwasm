@@ -35,6 +35,7 @@ const (
 	SectionCountMax		= UnknownSectionId + 1
 )
 
+
 //
 // Section interface.  All section objects present this interface, for
 // parsing, validation, etc
@@ -193,6 +194,56 @@ func (section ExportSection) String() string {
 		builder.WriteString(fmt.Sprintf("    %s\n", export))
 	}
 	return builder.String()
+}
+
+
+//
+// Functions section
+//
+type FunctionSection struct {
+	function []uint32
+}
+
+func (section FunctionSection) id() uint32 {
+	return FunctionSectionId
+}
+
+// Factory function for decoding and generating an FunctionSection from a stream
+// of bytes.  No side effects.
+func readFunctionSection(content []byte) (FunctionSection, error) {
+	section := FunctionSection{}
+	reader  := bytes.NewReader(content)
+
+	// Function section is encoded as a vector of type indices
+	count, err := readVectorLength(reader)
+	if (err != nil) {
+		return section, err
+	}
+	
+	// Parse the individual function descriptors
+	function := make([]uint32, count)
+	for i := uint32(0); i < count; i++ {
+		function[i], err = readULEB128(reader)
+		if (err != nil) {
+			return section, err
+		}
+	}
+	section.function = function
+
+	return section, nil
+}
+
+
+func (section FunctionSection) validate() error {
+	//@
+	return nil
+}
+
+func (section FunctionSection) String() string {
+	// Include the first few indices
+	previewLength, suffix := preview(len(section.function), 8)
+	return fmt.Sprintf("Function section:\n    index: %x%s",
+		section.function[:previewLength], suffix)
 }
 
 
@@ -541,13 +592,7 @@ func (section UnknownSection) validate() error {
 func (section UnknownSection) String() string {
 	// Include the first few bytes of the payload
 	contentLength := len(section.content)
-	previewLength := 4
-	suffix := " ..."
-	if (previewLength > contentLength) {
-		previewLength = contentLength
-		suffix = ""
-	}
-
+	previewLength, suffix := preview(contentLength, 4)
 	return fmt.Sprintf("Unknown section %#x, size %d: % x%s",
 		section.unknownId,
 		contentLength,
@@ -595,6 +640,7 @@ func readSection(reader io.Reader) (Section, error) {
 	switch(id) {
 		case CustomSectionId:	section, err = readCustomSection(content)
 		case ExportSectionId:	section, err = readExportSection(content)
+		case FunctionSectionId:	section, err = readFunctionSection(content)
 		case MemorySectionId:	section, err = readMemorySection(content)
 		case TableSectionId:	section, err = readTableSection(content)
 		case TypeSectionId:		section, err = readTypeSection(content)
@@ -606,3 +652,18 @@ func readSection(reader io.Reader) (Section, error) {
 }
 
 
+//
+// Compute the length of a "preview" slice when displaying a string of
+// bytes/records.  Useful for rendering large objects into brief summaries,
+// in String() methods.  Returns (length of preview, suffix for showing the
+// preview).  No side effects
+//
+func preview(contentLength int, previewLength int) (int, string) {
+	suffix := " ..."
+	if (previewLength > contentLength) {
+		previewLength = contentLength
+		suffix = ""
+	}
+
+	return previewLength, suffix
+}
