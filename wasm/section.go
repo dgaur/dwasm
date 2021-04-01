@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Decoding or validation error due to invalid Section content
 var InvalidSection = errors.New("Invalid section")
 
 
@@ -317,6 +318,8 @@ func (section ExportSection) String() string {
 //
 // Functions section
 //
+
+// Top-level section for declaring Function indices
 type FunctionSection struct {
 	function []uint32
 }
@@ -387,6 +390,7 @@ func (memory Memory) String() string {
 		memory.limit.min, memory.limit.max)
 }
 
+// Top-level section for declaring Memories
 type MemorySection struct {
 	memory []Memory
 }
@@ -443,6 +447,8 @@ func (section MemorySection) String() string {
 //
 // Table section
 //
+
+// Descriptor for a single table
 type Table struct {
 	limit	Limit
 	reftype	uint8
@@ -466,6 +472,7 @@ func (table Table) String() string {
 		table.limit.min, table.limit.max, TypeMap[ int(table.reftype) ])
 }
 
+// Top-level section for declaring Table descriptors
 type TableSection struct {
 	table []Table
 }
@@ -720,7 +727,8 @@ func (section UnknownSection) String() string {
 
 //
 // Parse and return a single Section from a wasm byte sequence.  Each
-// Section is basically encoded as a TLV structure
+// Section is basically encoded as a TLV structure, so use the leading tag (id)
+// field to determine how to consume the rest of the section.
 //
 func readSection(reader io.Reader) (Section, error) {
 	var section Section
