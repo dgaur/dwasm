@@ -1,7 +1,8 @@
 package wasm
 
 import(
-    "testing"
+	"bytes"
+	"testing"
     )
 
 
@@ -54,6 +55,62 @@ func TestExportSection(t *testing.T) {
                 // Assume each successful decode has at least 1 export
                 if (section.export[0] != test.decoded.export[0]) {
                     t.Error("Unexpected decoded export[0]: ", section)
+                }
+			}
+        })
+    }
+}
+
+
+//
+// Test decoding of CodeSection blocks
+//
+func TestCodeSection(t *testing.T) {
+    testCases := []struct{
+        name        string
+        encoded     []byte
+        decoded     CodeSection
+        status      error
+    }{
+		// 1 function
+        { "function1",
+          []byte{ 1,
+				  3, 0, 0x1, 0xB },
+          CodeSection{
+			[]Function{
+				{ []byte{ 0x1, 0xB }, []ValueType{} },
+			},
+		  },
+          nil },
+
+		// 2 functions
+        { "function1",
+          []byte{ 2,
+				  3, 0, 0x1, 0xB,
+				  4, 0, 0x1, 0x1, 0xB },
+          CodeSection{
+			[]Function{
+				{ []byte{ 0x1, 0xB }, []ValueType{} },
+				{ []byte{ 0x1, 0x1, 0xB }, []ValueType{} },
+			},
+		  },
+          nil },
+    }
+
+    for _, test := range testCases {
+        t.Run(test.name, func(t *testing.T) {
+            section, err := readCodeSection(test.encoded)
+            if (err != test.status) {
+                t.Error("Unexpected decoding status: ", err)
+            }
+            if (err == nil) {
+                if (len(section.function) != len(test.decoded.function)) {
+                    t.Error("Unexpected decoded length: ", section)
+                }
+
+                // Assume each successful decode has at least 1 function
+                if (!bytes.Equal(section.function[0].body, test.decoded.function[0].body)) {
+                    t.Error("Unexpected decoded function[0]: ", section)
                 }
 			}
         })

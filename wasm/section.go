@@ -47,6 +47,123 @@ type Section interface {
 
 
 //
+// Code section.  Actual function bodies, etc.
+//
+
+// A single function body
+type Function struct {
+	body	[]byte
+	local	[]ValueType
+	//@possible "name" annotation from custom section "name"?
+}
+
+// Factory function for decoding + returning a single Function body.  No
+// side effects.
+func readFunction(reader *bytes.Reader) (Function, error) {
+	function := Function{}
+
+	// Size of the entire function description, in bytes
+	functionSize, err := readULEB128(reader)
+	if (err != nil) {
+		return function, err
+	}
+
+	// Consume *only* this function, if multiple functions are present in this
+	// same Code section
+	functionBytes := make([]byte, functionSize)
+	_, err = reader.Read(functionBytes)
+	if (err != nil) {
+		return function, err
+	}
+	functionReader := bytes.NewReader(functionBytes)
+
+	// Vector of local declarations
+	count, err := readVectorLength(functionReader)
+	if (err != nil) {
+		return function, err
+	}
+
+	// Consume the actual local declarations
+	local := make([]ValueType, count)
+	for i := uint32(0); i < count; i++ {
+		//@N instances of vtype. how are these consumed?
+		_, err = readULEB128(functionReader)
+		if (err != nil) {
+			return function, err
+		}
+		_, err = functionReader.ReadByte()
+		if (err != nil) {
+			return function, err
+		}
+	}
+	function.local = local
+
+	// Consume the actual code/function body
+	body := make([]byte, functionReader.Len())
+	_, err = functionReader.Read(body)
+	if (err != nil) {
+		return function, err
+	}
+	function.body = body
+
+	return function, err
+}
+
+func (function Function) String() string {
+	return fmt.Sprintf("function: length %d", len(function.body))//@
+}
+
+// Top-level code section for declaring Code block (function bodies)
+type CodeSection struct {
+	function []Function
+}
+
+// Factory function for decoding and generating a CodeSection from a stream
+// of bytes.  No side effects.
+func readCodeSection(content []byte) (CodeSection, error) {
+	section := CodeSection{}
+	reader  := bytes.NewReader(content)
+
+	// Code section is encoded as a vector of code block (function bodies)
+	count, err := readVectorLength(reader)
+	if (err != nil) {
+		return section, err
+	}
+
+	// Parse the individual bodies
+	function := make([]Function, count)
+	for i := uint32(0); i < count; i++ {
+		function[i], err = readFunction(reader)
+		if (err != nil) {
+			return section, err
+		}
+	}
+	section.function = function
+
+	return section, nil
+}
+
+func (section CodeSection) id() uint32 {
+	return CodeSectionId
+}
+
+func (section CodeSection) validate() error {
+	//@
+	return nil
+}
+
+func (section CodeSection) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("Code section:\n")
+	for _, export := range section.function {
+		builder.WriteString(fmt.Sprintf("    %s\n", export))
+	}
+	return builder.String()
+}
+
+
+//
 // Custom section.  These are mostly opaque/proprietary, so cannot be parsed
 // or decomposed beyond the section name
 //
@@ -219,7 +336,7 @@ func readFunctionSection(content []byte) (FunctionSection, error) {
 	if (err != nil) {
 		return section, err
 	}
-	
+
 	// Parse the individual function descriptors
 	function := make([]uint32, count)
 	for i := uint32(0); i < count; i++ {
@@ -498,14 +615,14 @@ func readFunctionType(reader *bytes.Reader) (FunctionType, error) {
 		return ftype, err
 	}
 	ftype.parameter = parameter
-	
+
 	// Function result types
 	result, err := readResultType(reader)
 	if (err != nil) {
 		return ftype, err
 	}
 	ftype.result = result
-	
+
 	return ftype, nil
 }
 
@@ -638,6 +755,7 @@ func readSection(reader io.Reader) (Section, error) {
 	// Delegate the remaining parsing to the Section itself, based on the
 	// Section id above
 	switch(id) {
+		case CodeSectionId:		section, err = readCodeSection(content)
 		case CustomSectionId:	section, err = readCustomSection(content)
 		case ExportSectionId:	section, err = readExportSection(content)
 		case FunctionSectionId:	section, err = readFunctionSection(content)
