@@ -17,11 +17,11 @@ import (
 // VM/CLI configuration
 type WASMConfig struct {
 	//@logging level
-	//@validate?
 	//@disassemble?
 
 	filename		string //@list of files/modules
 	showSections	bool
+	validate		bool
 }
 
 
@@ -31,6 +31,7 @@ func initialize() WASMConfig {
 
 	// Describe all flags
 	flag.BoolVar(&config.showSections, "s", false, "Dump .wasm sections")
+	flag.BoolVar(&config.validate,     "v", false, "Validate .wasm sections")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(),
@@ -51,10 +52,14 @@ func initialize() WASMConfig {
 
 
 func main() {
+	//
 	// Parse any CLI options
+	//
 	config := initialize()
 
+	//
 	// Load any modules
+	//
 	wasmfile, err := os.Open(config.filename)
 	if (err != nil) {
 		log.Fatalf("Unable to open %s: %s\n", config.filename, err)
@@ -69,9 +74,18 @@ func main() {
 
 	//@link modules if necessary
 
+	//
 	// Dispatch any CLI options
+	//
 	if (config.showSections) {
 		log.Println(module)
+	}
+
+	if (config.validate) {
+		err = module.Validate()
+		if (err != nil) {
+			log.Fatalf("Module validation failed: %s\n", err)
+		}
 	}
 	//@disassemble, execute, etc
 

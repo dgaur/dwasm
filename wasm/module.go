@@ -24,6 +24,24 @@ type Module struct {
 	section []Section
 }
 
+// Validate the module structure.  See chapter 3 of WASM spec.  No side effects.
+func (module Module) Validate() error {
+	// Validate each non-empty section
+	for _, section := range module.section {
+		if (section != nil) {
+			err := section.validate()
+			if (err != nil) {
+				return err
+			}
+		}
+	}
+
+	//@module-level validation: function sections + code sections should
+	//correspond, etc
+
+	return nil
+}
+
 func (module Module) String() string {
 	var builder strings.Builder
 
