@@ -201,7 +201,7 @@ func (section CustomSection) validate() error {
 }
 
 func (section CustomSection) String() string {
-	return fmt.Sprintf("Custom section '%s', size %d",
+	return fmt.Sprintf("Custom section:\n    custom: '%s', size %d\n",
 		section.name, len(section.content))
 }
 
@@ -260,7 +260,7 @@ func readExport(reader *bytes.Reader) (Export, error) {
 }
 
 func (export Export) String() string {
-	return fmt.Sprintf("export: %s, type %s, index %#x",
+	return fmt.Sprintf("export: '%s', type %s, index %#x",
 		export.name, ExportTypeMap[ int(export.etype) ], export.index)
 }
 
@@ -362,7 +362,7 @@ func (section FunctionSection) validate() error {
 func (section FunctionSection) String() string {
 	// Include the first few indices
 	previewLength, suffix := preview(len(section.function), 8)
-	return fmt.Sprintf("Function section:\n    index: %x%s",
+	return fmt.Sprintf("Function section:\n    index: %x%s\n",
 		section.function[:previewLength], suffix)
 }
 
@@ -717,7 +717,7 @@ func (section UnknownSection) String() string {
 	// Include the first few bytes of the payload
 	contentLength := len(section.content)
 	previewLength, suffix := preview(contentLength, 4)
-	return fmt.Sprintf("Unknown section %#x, size %d: % x%s",
+	return fmt.Sprintf("Unknown section %#x:\n    size %d: % x%s",
 		section.unknownId,
 		contentLength,
 		section.content[:previewLength],

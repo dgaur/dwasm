@@ -1,7 +1,8 @@
 # WASM interpreter/VM
 
 This is an experimental WASM interpreter.  Based on
-[WebAssembly spec 1.1, Mar 12 2021 draft](https://webassembly.github.io/spec/core/).
+[WebAssembly spec 1.1, Mar 12 2021 draft](https://webassembly.github.io/spec/core/).  Not useful or functional yet.
+
 
 ## Build
 ```
@@ -13,18 +14,36 @@ dan@dan-desktop:~/src/dwasm$ make test
 === RUN   TestULEB128Decoding/0x00
 === RUN   TestULEB128Decoding/0x01
 ...
-=== RUN   TestTableSection/decode2
---- PASS: TestTableSection (0.00s)
-    --- PASS: TestTableSection/decode1 (0.00s)
-    --- PASS: TestTableSection/decodeAB (0.00s)
-    --- PASS: TestTableSection/decode2 (0.00s)
+=== RUN   TestTypeSection/bad-ftype-delimiter-0xAA
+--- PASS: TestTypeSection (0.00s)
+    --- PASS: TestTypeSection/decode-no-param-no-result (0.00s)
+    --- PASS: TestTypeSection/decode-multiple-param-multiple-result (0.00s)
+    --- PASS: TestTypeSection/bad-ftype-delimiter-0xAA (0.00s)
 PASS
-coverage: 38.4% of statements
-ok  	wasm	(cached)	coverage: 38.4% of statements
+coverage: 61.0% of statements
+ok  	wasm	0.004s	coverage: 61.0% of statements
 ```
 
 ## Usage
 ```
-dan@dan-desktop:~/src/dwasm$ ./dwasm 
+dan@dan-desktop:~/src/dwasm$ ./dwasm -h
 Usage: ./dwasm [options] input.wasm
+  -s	Dump .wasm sections
+
+dan@dan-desktop:~/src/dwasm$ ./dwasm -s samples/factorial.wasm 
+2021/04/02 15:24:38 Module:
+Custom section:
+    custom: 'name', size 20
+
+Type section:
+    function: param f64 => result f64 
+
+Function section:
+    index: [0]
+
+Export section:
+    export: 'fac', type function, index 0x0
+
+Code section:
+    function: length 43
 ```

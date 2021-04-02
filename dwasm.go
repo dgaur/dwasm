@@ -13,7 +13,25 @@ import (
 	"wasm"
 )
 
-func initialize() string {
+
+// VM/CLI configuration
+type WASMConfig struct {
+	//@logging level
+	//@validate?
+	//@disassemble?
+
+	filename		string //@list of files/modules
+	showSections	bool
+}
+
+
+// Parse + return any CLI configuration.  No side effects.
+func initialize() WASMConfig {
+	var config = WASMConfig{}
+
+	// Describe all flags
+	flag.BoolVar(&config.showSections, "s", false, "Dump .wasm sections")
+
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(),
 			"Usage: %s [options] input.wasm\n", os.Args[0])
@@ -26,21 +44,36 @@ func initialize() string {
 	if (flag.NArg() != 1) {
 		flag.Usage()
 	}
+	config.filename = flag.Args()[0]
 
-	return flag.Args()[0]
+	return config
 }
 
 
 func main() {
-	filename := initialize()
-	wasmfile, err := os.Open(filename)
+	// Parse any CLI options
+	config := initialize()
+
+	// Load any modules
+	wasmfile, err := os.Open(config.filename)
 	if (err != nil) {
-		log.Fatalf("Unable to open %s: %s\n", filename, err)
+		log.Fatalf("Unable to open %s: %s\n", config.filename, err)
 	}
 	defer wasmfile.Close()
 
 	reader := bufio.NewReader(wasmfile)
-	_, _ = wasm.ReadModule(reader)
-	
+	module, err := wasm.ReadModule(reader)
+	if (err != nil) {
+		log.Fatalf("Unable to load module %s: %s\n", config.filename, err)
+	}
+
+	//@link modules if necessary
+
+	// Dispatch any CLI options
+	if (config.showSections) {
+		log.Println(module)
+	}
+	//@disassemble, execute, etc
+
 	return
 }

@@ -3,8 +3,10 @@ package wasm
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"log"
+	"strings"
 )
 
 var InvalidModule = errors.New("Invalid module")
@@ -20,6 +22,19 @@ const (
 //
 type Module struct {
 	section []Section
+}
+
+func (module Module) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("Module:\n")
+	for _, section := range module.section {
+		if (section != nil) {
+			builder.WriteString(fmt.Sprintf("%s\n", section))
+		}
+	}
+
+	return builder.String()
 }
 
 //
@@ -64,7 +79,6 @@ func ReadModule(reader io.Reader) (Module, error) {
 			log.Printf("Invalid section")
 			return module, err
 		}
-		log.Println(section)
 
 		// Each type of section can occur at most once, except custom sections,
 		// so just track by section id/type
