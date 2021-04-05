@@ -88,6 +88,8 @@ func main() {
 		}
 	}
 	//@disassemble, execute, etc
-
+	//@init VM
+	//@vm.execute(module, config)
+	
 	return
 }
