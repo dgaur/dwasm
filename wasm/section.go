@@ -266,7 +266,7 @@ func (export Export) String() string {
 
 // Top-level section for declaring Exported symbols/references
 type ExportSection struct {
-	export []Export
+	export map[string]Export
 }
 
 func (section ExportSection) id() uint32 {
@@ -286,14 +286,15 @@ func readExportSection(content []byte) (ExportSection, error) {
 	}
 
 	// Parse the individual export descriptors
-	export := make([]Export, count)
+	exportMap := make(map[string]Export, count)
 	for i := uint32(0); i < count; i++ {
-		export[i], err = readExport(reader)
+		export, err := readExport(reader)
 		if (err != nil) {
 			return section, err
 		}
+		exportMap[export.name] = export
 	}
-	section.export = export
+	section.export = exportMap
 
 	return section, nil
 }

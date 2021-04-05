@@ -21,8 +21,8 @@ func TestExportSection(t *testing.T) {
           []byte{ 1,
 				  7, 'e', 'x', 'p', 'o', 'r', 't', '1', 0, 0 },
           ExportSection{
-			[]Export{
-				{ "export1", 0, 0 },
+			map[string]Export{
+				"export1": Export{ "export1", 0, 0 },
 			},
 		  },
           nil },
@@ -33,9 +33,9 @@ func TestExportSection(t *testing.T) {
 				  7, 'e', 'x', 'p', 'o', 'r', 't', '1', 0, 0,
                   7, 'e', 'x', 'p', 'o', 'r', 't', '2', 2, 0xF },
           ExportSection{
-			[]Export{
-				{ "export1", 0, 0 },
-				{ "export2", 2, 0xF },
+			map[string]Export{
+				"export1": Export{ "export1", 0, 0 },
+				"export2": Export{ "export2", 2, 0xF },
 			},
 		  },
           nil },
@@ -52,9 +52,9 @@ func TestExportSection(t *testing.T) {
                     t.Error("Unexpected decoded length: ", section)
                 }
 
-                // Assume each successful decode has at least 1 export
-                if (section.export[0] != test.decoded.export[0]) {
-                    t.Error("Unexpected decoded export[0]: ", section)
+
+                if (section.export["export1"] != test.decoded.export["export1"]) {
+                    t.Error("Unexpected decoded export[export1]: ", section)
                 }
 			}
         })
