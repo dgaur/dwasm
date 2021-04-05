@@ -580,7 +580,7 @@ type FunctionType struct {
 	result		ResultType
 }
 
-// Factory function for decoding + returning a ResultType.  No side effects.
+// Factory function for decoding + returning a ResultType.
 func readResultType(reader *bytes.Reader) (ResultType, error) {
 	// Each ResultType is itself a vector of ValueTypes
 	count, err := readVectorLength(reader)
@@ -602,7 +602,6 @@ func readResultType(reader *bytes.Reader) (ResultType, error) {
 }
 
 // Factory function for decoding + returning a single FunctionType descriptor.
-// No side effects.
 func readFunctionType(reader *bytes.Reader) (FunctionType, error) {
 	ftype := FunctionType{}
 
