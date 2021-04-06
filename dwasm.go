@@ -14,20 +14,21 @@ import (
 )
 
 
-// VM/CLI configuration
-type WASMConfig struct {
+// Top-level CLI configuration
+type CLIConfig struct {
 	//@logging level
 	//@disassemble?
 
 	filename		string //@list of files/modules
 	showSections	bool
 	validate		bool
+	vm				wasm.VMConfig
 }
 
 
 // Parse + return any CLI configuration.  No side effects.
-func initialize() WASMConfig {
-	var config = WASMConfig{}
+func initialize() CLIConfig {
+	var config = CLIConfig{}
 
 	// Describe all flags
 	flag.BoolVar(&config.showSections, "s", false, "Dump .wasm sections")
@@ -88,8 +89,8 @@ func main() {
 		}
 	}
 	//@disassemble, execute, etc
-	//@init VM
-	//@vm.execute(module, config)
+	//@init VM(config.vm)
+	//@vm.execute(module)
 	
 	return
 }
