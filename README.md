@@ -4,6 +4,11 @@ This is an experimental WASM interpreter.  Based on
 [WebAssembly spec 1.1, Mar 12 2021 draft](https://webassembly.github.io/spec/core/).  Not useful or functional yet.
 
 
+## Tools
+* `go`, v1.16.  For wasm support, v1.12 or later is required.
+* `wat2wasm`, via `wabt`.  Or emulate with `wasmtime`, etc.  Only required for building the samples.
+
+
 ## Build
 ```
 dan@dan-desktop:~/src/dwasm$ make clean
