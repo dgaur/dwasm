@@ -19,6 +19,7 @@ type CLIConfig struct {
 	//@logging level
 	//@disassemble?
 
+	execute			bool
 	filename		string //@list of files/modules
 	showSections	bool
 	validate		bool
@@ -31,8 +32,11 @@ func initialize() CLIConfig {
 	var config = CLIConfig{}
 
 	// Describe all flags
+	flag.StringVar(&config.vm.StartFn, "f", "",    "Start/entry function")
 	flag.BoolVar(&config.showSections, "s", false, "Dump .wasm sections")
 	flag.BoolVar(&config.validate,     "v", false, "Validate .wasm sections")
+	flag.BoolVar(&config.execute,      "x", false, "Start VM + execute")
+	
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(),
@@ -73,24 +77,29 @@ func main() {
 		log.Fatalf("Unable to load module %s: %s\n", config.filename, err)
 	}
 
-	//@link modules if necessary
-
 	//
 	// Dispatch any CLI options
 	//
 	if (config.showSections) {
 		log.Println(module)
 	}
-
 	if (config.validate) {
 		err = module.Validate()
 		if (err != nil) {
 			log.Fatalf("Module validation failed: %s\n", err)
 		}
 	}
-	//@disassemble, execute, etc
-	//@init VM(config.vm)
-	//@vm.execute(module)
+	//@disassemble
+	if (config.execute) {
+		vm, err := wasm.CreateVM(config.vm)
+		if (err != nil) {
+			log.Fatalf("Unable to initialize VM: %s\n", err)
+		}
+		err = vm.Execute(module, config.vm)
+		if (err != nil) {
+			log.Fatalf("VM error: %s\n", err)
+		}
+	}
 	
 	return
 }
