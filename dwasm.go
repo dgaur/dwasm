@@ -96,7 +96,9 @@ func main() {
 			log.Fatalf("Unable to initialize VM: %s\n", err)
 		}
 		err = vm.Execute(module, config.vm)
-		if (err != nil) {
+		if (err == nil) {
+			log.Printf("VM exited cleanly")
+		} else {
 			log.Fatalf("VM error: %s\n", err)
 		}
 	}

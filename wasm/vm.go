@@ -1,12 +1,12 @@
 package wasm
 
 import (
+	"log"
 	"errors"
 )
 
 
 var MissingStartFunction = errors.New("Unable to find start/entry function")
-
 
 //
 // VM configuration
@@ -44,6 +44,8 @@ type WASMInterpreter struct {
 // Run the actual interpreter
 //
 func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
+	var err error
+
 	//
 	// Locate the named start function / entry point
 	//
@@ -75,9 +77,34 @@ func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
 
 	// This is the actual start function, finally
 	function := codeSection.function[ export.index ]
-	_ = function.body //@and functions.local[]
+	//@handle functions.local[]
 
-	return nil
+	//
+	// Main execution loop
+	//
+	ip := 0
+	for {
+		opcode := function.body[ ip ]
+		instruction, ok := Opcode[ opcode ]
+		if (!ok) {
+			log.Printf("VM invalid opcode %#x at IP %#x\n", opcode, ip)
+			return InvalidOpcode
+		}
+
+		// Execute the actual bytecode instruction
+		err, ip = instruction.function(vm, function.body, ip)
+		if (err == EndOfBlock) {
+			//@unwind call stack
+			err = nil
+			break
+		} else if (err != nil) {
+			log.Printf("VM runtime error at IP %#x: %s\n", ip, err)
+			break
+		}
+		// else, no error.  Continue executing at new IP
+	}
+
+	return err
 }
 
 
