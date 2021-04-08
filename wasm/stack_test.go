@@ -9,7 +9,7 @@ import(
 // Test stack usage
 //
 func TestStack(t *testing.T) {
-	stack := Stack{}
+	stack := CreateStack(32)
 
 	// Push 2 items of different types
 	stack.Push(int(1))
@@ -20,7 +20,7 @@ func TestStack(t *testing.T) {
 		t.Error("Stack is empty unexpectedly")
 	}
 
-	// Pop both items and validate
+	// Pop and validate
 	data1, err := stack.Pop()
 	if (err != nil) {
 		t.Error("Unexpected error: ", err)
@@ -29,7 +29,9 @@ func TestStack(t *testing.T) {
 		t.Errorf("Unexpected data: %f", data1)
 	}
 
-	data2, err := stack.Pop()
+	// Peek and validate
+	top := stack.Top()
+	data2, err := stack.Peek(top)
 	if (err != nil) {
 		t.Error("Unexpected error: ", err)
 	}
@@ -37,7 +39,19 @@ func TestStack(t *testing.T) {
 		t.Errorf("Unexpected data: %d", data2)
 	}
 
-	// Stack is empty now
+	// Poke a new value
+	stack.Poke(top, 10)
+
+	// Pop and validate
+	data3, err := stack.Pop()
+	if (err != nil) {
+		t.Error("Unexpected error: ", err)
+	}
+	if (err == nil && data3.(int) != 10) {
+		t.Errorf("Unexpected data: %d", data3)
+	}
+
+	// Stack should be empty now
 	if (!stack.IsEmpty()) {
 		t.Error("Stack still has data, unexpectedly")
 	}
