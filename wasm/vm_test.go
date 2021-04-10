@@ -20,7 +20,7 @@ func TestVMExecution(t *testing.T) {
         { "empty-module",
           []byte{ 0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00 },
 		  "InvalidFunction",
-          MissingStartFunction },
+          MissingFunction },
 
 		// single "nop" function, see samples/fnop.wat
         { "fnop-invalid-entry",
@@ -30,7 +30,7 @@ func TestVMExecution(t *testing.T) {
 				  0x6f, 0x70, 0x00, 0x00, 0x0a, 0x06, 0x01, 0x04,
 				  0x00, 0x01, 0x01, 0x0b },
 		  "InvalidFunction",
-          MissingStartFunction },
+          MissingFunction },
 
 		// single "nop" function, see samples/fnop.wat
         { "fnop",

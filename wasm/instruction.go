@@ -14,7 +14,7 @@ var UnreachableCode		= errors.New("Unexpected/unreachable code (opcode 0)")
 // Signature for all interpreted VM instructions:
 //	(VM handle, raw binary code, offset) => (status, new offset)
 //
-type InstructionFunction func(WASMVM, []byte, int)(error, int)
+type InstructionFunction func(*WASMInterpreterThread)(error)
 
 type Instruction struct {
 	name		string
@@ -33,17 +33,29 @@ var Opcode = map[uint8]Instruction {
 	0x0B:	Instruction{"end",			end},
 }
 
-func end(vm WASMVM, code []byte, ip int) (error, int) {
+
+func end(thread *WASMInterpreterThread) error {
 	// End of block/function/execution
-	return EndOfBlock, ip
+	//@how to distinguish between return vs end of block?
+	stackFrame, err := thread.popFrame()
+	if (err != nil) {
+		return err
+	}
+
+	// Restore prior thread context
+	//@clean up dataStack/locals?
+	thread.jump(stackFrame.caller)
+
+	return EndOfBlock
 }
 
-func nop(vm WASMVM, code []byte, ip int) (error, int) {
-	// Nop.  Continue execution at the next instruction
-	return nil, ip+1
+func nop(thread *WASMInterpreterThread) error {
+	// No-op.  Continue execution at the next instruction
+	thread.current.ip += 1
+	return nil
 }
 
-func unreachable(vm WASMVM, code []byte, ip int) (error, int) {
+func unreachable(thread *WASMInterpreterThread) error {
 	// Somehow reached unexpected/non-executable code
-	return UnreachableCode, ip
+	return UnreachableCode
 }
