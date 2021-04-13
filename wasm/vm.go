@@ -12,7 +12,8 @@ var MissingFunction = errors.New("Unable to find function")
 // VM configuration
 //
 type VMConfig struct {
-	StartFn	string
+	StartFn		string
+	StartStack	[]int
 	//@JIT?
 	//@resource allocation/sizing
 }
@@ -54,7 +55,8 @@ type WASMInterpreterThread struct {
 }
 
 type StackFrame struct {
-	caller InstructionPointer
+	caller	InstructionPointer
+	locals	int
 }
 
 // Jump to new function/instruction, as a result of call or return
@@ -65,9 +67,16 @@ func (thread *WASMInterpreterThread) jump(ip InstructionPointer) {
 // Save the current stack frame in preparation for a function call
 func (thread *WASMInterpreterThread) pushFrame() {
 	stackFrame := StackFrame{}
+
+	// Save the current bytecode context
 	stackFrame.caller.bytecode	= thread.current.bytecode
 	stackFrame.caller.function	= thread.current.function
 	stackFrame.caller.ip		= thread.current.ip //@plus calling instruction
+
+	// Save the current stack location (i.e., the stack base pointer), since
+	// locals are relative to this offset
+	stackFrame.locals = thread.dataStack.Top()
+
 	thread.callStack.Push(stackFrame)
 }
 
@@ -123,12 +132,16 @@ func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
 		return MissingFunction
 	}
 
-	// Initialize the initial VM thread context
+	// Initialize the initial VM thread context.  Preload the data stack if
+	// necessary
 	thread := WASMInterpreterThread{
 		callStack: CreateStack(32),
 		dataStack: CreateStack(256),
 	}
-
+	for _, value := range config.StartStack {
+		thread.dataStack.Push(value)
+	}
+	
 	// Simulate a function call to the entry function, so that exit/unwinding
 	// behaves properly
 	thread.pushFrame()

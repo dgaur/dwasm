@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"wasm"
 )
@@ -19,9 +20,9 @@ type CLIConfig struct {
 	//@logging level
 	//@disassemble?
 
+	dumpSections	bool
 	execute			bool
 	filename		string //@list of files/modules
-	showSections	bool
 	validate		bool
 	vm				wasm.VMConfig
 }
@@ -32,15 +33,26 @@ func initialize() CLIConfig {
 	var config = CLIConfig{}
 
 	// Describe all flags
-	flag.StringVar(&config.vm.StartFn, "f", "",    "Start/entry function")
-	flag.BoolVar(&config.showSections, "s", false, "Dump .wasm sections")
+	flag.BoolVar(&config.dumpSections, "d", false, "Dump .wasm sections")
+	flag.StringVar(&config.vm.StartFn, "f", "",    "Start/entry `function`")
 	flag.BoolVar(&config.validate,     "v", false, "Validate .wasm sections")
 	flag.BoolVar(&config.execute,      "x", false, "Start VM + execute")
-	
 
+	// Preload the thread with command-line args for easier testing
+	var stack []int
+	flag.Func("p", "Preload int32 `value` on stack", func(arg string) error {
+		value, err := strconv.Atoi(arg)
+		if (err != nil) {
+			return err
+		}
+		stack = append(stack, value)
+		return nil
+	})
+
+	// Custom usage message
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(),
-			"Usage: %s [options] input.wasm\n", os.Args[0])
+			"Usage: %s [options] /path/to/input.wasm\n", os.Args[0])
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -51,6 +63,7 @@ func initialize() CLIConfig {
 		flag.Usage()
 	}
 	config.filename = flag.Args()[0]
+	config.vm.StartStack = stack
 
 	return config
 }
@@ -80,7 +93,7 @@ func main() {
 	//
 	// Dispatch any CLI options
 	//
-	if (config.showSections) {
+	if (config.dumpSections) {
 		log.Println(module)
 	}
 	if (config.validate) {
@@ -102,6 +115,6 @@ func main() {
 			log.Fatalf("VM error: %s\n", err)
 		}
 	}
-	
+
 	return
 }
