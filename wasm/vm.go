@@ -13,7 +13,7 @@ var MissingFunction = errors.New("Unable to find function")
 //
 type VMConfig struct {
 	StartFn		string
-	StartStack	[]int
+	StartStack	[]int32
 	//@JIT?
 	//@resource allocation/sizing
 }
@@ -182,6 +182,20 @@ func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
 		// else, no error.  Continue executing at next linear IP
 	}
 
+	// Dump any data left on the stack, in the assumption that these are
+	// the result(s) of some function/calculation
+	for {
+		if (thread.dataStack.IsEmpty()) {
+			break
+		}
+		value, err := thread.dataStack.Pop()
+		if (err != nil) {
+			log.Printf("Thread stack error on exit: %s\n", err)
+			break
+		}
+		log.Printf("Thread stack: %d\n", value.(int32)) //@assume int32 results
+	}
+	
 	return err
 }
 

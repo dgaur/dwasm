@@ -39,13 +39,13 @@ func initialize() CLIConfig {
 	flag.BoolVar(&config.execute,      "x", false, "Start VM + execute")
 
 	// Preload the thread with command-line args for easier testing
-	var stack []int
+	var stack []int32
 	flag.Func("p", "Preload int32 `value` on stack", func(arg string) error {
 		value, err := strconv.Atoi(arg)
 		if (err != nil) {
 			return err
 		}
-		stack = append(stack, value)
+		stack = append(stack, int32(value))
 		return nil
 	})
 
