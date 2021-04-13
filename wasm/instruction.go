@@ -5,7 +5,11 @@ import (
 )
 
 
-var EndOfBlock			= errors.New("End of VM block") //@not really an error
+// Internal VM coordination
+var EndOfBlock			= errors.New("End of VM block")
+var ReloadBytecode		= errors.New("call/ret/jmp, must recache bytecode")
+
+// Runtime errors
 var InvalidOpcode		= errors.New("Invalid opcode")
 var UnreachableCode		= errors.New("Unexpected/unreachable code (opcode 0)")
 

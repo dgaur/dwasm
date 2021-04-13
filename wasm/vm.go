@@ -32,6 +32,7 @@ type WASMVM interface {
 // and offset into the block of bytecode for that function.
 //
 type InstructionPointer struct {
+	bytecode	[]byte		// Cached slice of code[function]
 	function	int
 	ip			int
 }
@@ -64,6 +65,7 @@ func (thread *WASMInterpreterThread) jump(ip InstructionPointer) {
 // Save the current stack frame in preparation for a function call
 func (thread *WASMInterpreterThread) pushFrame() {
 	stackFrame := StackFrame{}
+	stackFrame.caller.bytecode	= thread.current.bytecode
 	stackFrame.caller.function	= thread.current.function
 	stackFrame.caller.ip		= thread.current.ip //@plus calling instruction
 	thread.callStack.Push(stackFrame)
@@ -130,7 +132,8 @@ func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
 	// Simulate a function call to the entry function, so that exit/unwinding
 	// behaves properly
 	thread.pushFrame()
-	thread.jump( InstructionPointer{ int(export.index), 0 } )
+	entryfn	:= codeSection.function[ int(export.index) ].body[:]
+	thread.jump( InstructionPointer{ entryfn, int(export.index), 0 } )
 	//@handle functions.local[]
 
 
@@ -138,25 +141,32 @@ func (vm WASMInterpreter) Execute(module Module, config VMConfig) error {
 	// Main execution loop
 	//
 	for {
-		function	:= codeSection.function[ thread.current.function ]
-		opcode		:= function.body[ thread.current.ip ]
-
-		instruction, ok := Opcode[ opcode ]
-		if (!ok) {
-			log.Printf("VM invalid opcode %#x at IP %#x\n", opcode, thread.current.ip)
-			return InvalidOpcode
-		}
+		// (Re)locate the next opcode in the bytecode, based on prior jumps, etc
+		opcode := thread.current.bytecode[ thread.current.ip ]
 
 		// Execute the actual bytecode instruction
+		instruction, ok := Opcode[ opcode ]
+		if (!ok) {
+			log.Printf("VM invalid opcode %#x at IP %#x\n",
+				opcode, thread.current.ip)
+			return InvalidOpcode
+		}
 		err = instruction.function(&thread)
+
+		// Deal with errors, branches, etc
 		if (err == EndOfBlock && thread.callStack.IsEmpty()) {
+			// Entry point returned, so exit here
 			err = nil
 			break
+		} else if (err == ReloadBytecode) {
+			// Recache a new bytecode block after a call/ret/jump
+			thread.current.bytecode =
+				codeSection.function[ thread.current.function ].body[:]
 		} else if (err != nil) {
 			log.Printf("VM runtime error at IP %#x: %s\n", thread.current.ip, err)
 			break
 		}
-		// else, no error.  Continue executing at new IP
+		// else, no error.  Continue executing at next linear IP
 	}
 
 	return err
