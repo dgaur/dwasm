@@ -65,7 +65,8 @@ dan@dan-desktop:~/src/dwasm$ ./dwasm -x -f fnop samples/fnop.wasm
 2021/04/12 22:31:47 VM exited cleanly
 
 # Execute the 'addTwo' example
-dan@dan-desktop:~/src/dwasm$ ./dwasm -x -f addTwo -p 3 -p 4 samples/simple.wasm 2021/04/12 22:31:53 Thread stack: 7
+dan@dan-desktop:~/src/dwasm$ ./dwasm -x -f addTwo -p 3 -p 4 samples/simple.wasm
+2021/04/12 22:31:53 Thread stack: 7
 2021/04/12 22:31:53 Thread stack: 4
 2021/04/12 22:31:53 Thread stack: 3
 2021/04/12 22:31:53 VM exited cleanly
