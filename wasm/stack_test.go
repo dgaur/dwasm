@@ -30,8 +30,7 @@ func TestStack(t *testing.T) {
 	}
 
 	// Peek and validate
-	top := stack.Top()
-	data2, err := stack.Peek(top)
+	data2, err := stack.Peek(0)
 	if (err != nil) {
 		t.Error("Unexpected error: ", err)
 	}
@@ -40,7 +39,7 @@ func TestStack(t *testing.T) {
 	}
 
 	// Poke a new value
-	stack.Poke(top, 10)
+	stack.Poke(0, 10)
 
 	// Pop and validate
 	data3, err := stack.Pop()
